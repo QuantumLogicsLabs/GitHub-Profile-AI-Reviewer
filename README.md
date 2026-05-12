@@ -1,6 +1,5 @@
-# 🤖 GitHub Profile AI Reviewer
-
 <div align="center">
+<h1> 🤖 GitHub Profile AI Reviewer</h1>
 
 ![GitHub Profile AI Reviewer](https://img.shields.io/badge/AI--Powered-GitHub%20Profile%20Reviewer-0D1117?style=for-the-badge&logo=github&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-Agentic%20Workflow-4A90E2?style=for-the-badge&logo=python&logoColor=white)

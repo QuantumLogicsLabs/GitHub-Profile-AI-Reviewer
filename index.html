@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Profile AI-Reviewer Docs</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: #0b0e14;
+            color: #8b949e;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* Top Navigation Bar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background-color: #0b0e14;
+            border-bottom: 1px solid #161b22;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-weight: 700;
+            color: #58a6ff;
+            letter-spacing: 1px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        .nav-links {
+            display: flex;
+            gap: 25px;
+        }
+        .nav-links a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: #f0f6fc;
+            background-color: #21262d;
+        }
+        .status-badge {
+            background-color: rgba(56, 139, 253, 0.1);
+            color: #58a6ff;
+            border: 1px solid rgba(56, 139, 253, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        /* Multi-Page Visibility Logic */
+        .page {
+            display: none; /* Sub pages hidden by default */
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .page.active-page {
+            display: block; /* Only active page shows up */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* PAGE 1: HERO HOME STYLE */
+        .hero {
+            text-align: center;
+            padding: 120px 20px 80px 20px;
+            background: radial-gradient(circle at top, #161b22 0%, #0b0e14 70%);
+        }
+        .hero h1 {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: #58a6ff;
+            margin: 0;
+            line-height: 1.1;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+        .hero h1 span {
+            color: #f0f6fc;
+            display: block;
+        }
+        .hero p {
+            max-width: 650px;
+            margin: 30px auto;
+            font-size: 1.15rem;
+            color: #8b949e;
+            line-height: 1.6;
+        }
+        .cta-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 40px;
+        }
+        .btn-primary {
+            background-color: #388bfd;
+            color: #ffffff;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(56, 139, 253, 0.4);
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background-color: transparent;
+            color: #f0f6fc;
+            border: 1px solid #30363d;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            border-top: 1px solid #161b22;
+            border-bottom: 1px solid #161b22;
+            padding: 50px 20px;
+            background-color: #07090e;
+        }
+        .stats-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            text-align: center;
+        }
+        .stat-item h3 {
+            font-size: 2.5rem;
+            color: #388bfd;
+            margin: 0 0 5px 0;
+            font-weight: 700;
+        }
+        .stat-item p {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8b949e;
+            margin: 0;
+        }
+
+        /* PAGE 2 & PAGE 3: INNER PAGES STANDARD CONTENT */
+        .content-area {
+            max-width: 900px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+        .content-area h2 {
+            color: #f0f6fc;
+            font-size: 2rem;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 12px;
+        }
+        .grid {
+            display: grid;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .card {
+            padding: 25px;
+            background-color: #12161f;
+            border-radius: 6px;
+            border: 1px solid #21262d;
+        }
+        .card h4 {
+            color: #58a6ff;
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+        }
+        .card p {
+            margin: 0;
+            line-height: 1.5;
+        }
+        pre {
+            background-color: #12161f;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #21262d;
+            color: #ff7b72;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.95rem;
+        }
+        footer {
+            text-align: center;
+            margin-top: 100px;
+            color: #8b949e;
+            font-size: 0.85rem;
+            border-top: 1px solid #161b22;
+            padding: 30px 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation Bar -->
+    <div class="navbar">
+        <div class="logo" onclick="navigateTo('home')">AI-REVIEWER v1.0</div>
+        <div class="nav-links">
+            <a href="#home" id="nav-home" class="active" onclick="navigateTo('home')">Home</a>
+            <a href="#architecture" id="nav-architecture" onclick="navigateTo('architecture')">Architecture</a>
+            <a href="#training-guide" id="nav-training-guide" onclick="navigateTo('training-guide')">Training Guide</a>
+        </div>
+        <div class="status-badge">● PIPELINE LIVE</div>
+    </div>
+
+
+    <!-- ================= PAGE 1: HOME PAGE ================= -->
+    <div id="page-home" class="page active-page">
+        <div class="hero">
+            <h1>ANALYZE.<span>SCORE SMART.</span></h1>
+            <p>The AI-Reviewer uses an orchestrated LangGraph agentic model framework to map public developer profiles, compute contextual CodeBERT embeddings, and evaluate comprehensive syntax engineering metrics seamlessly.</p>
+            
+            <div class="cta-group">
+                <!-- Clicking these opens separate virtual inner pages! -->
+                <button onclick="navigateTo('training-guide')" class="btn-primary">Open Analyzer →</button>
+                <button onclick="navigateTo('architecture')" class="btn-secondary">How It Works</button>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>5+</h3>
+                    <p>Execution Nodes</p>
+                </div>
+                <div class="stat-item">
+                    <h3>768</h3>
+                    <p>Vector Array Dims</p>
+                </div>
+                <div class="stat-item">
+                    <h3>100%</h3>
+                    <p>State Tracking</p>
+                </div>
+                <div class="stat-item">
+                    <h3>PyTorch</h3>
+                    <p>Fine-Tuning Core</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= PAGE 2: ARCHITECTURE (HOW IT WORKS) ================= -->
+    <div id="page-architecture" class="page">
+        <div class="content-area">
+            <h2>System Architecture Matrix</h2>
+            <p>Our core model layers are segregated into specialized processing nodes orchestrated smoothly via a LangGraph state container loop:</p>
+            
+            <div class="grid">
+                <div class="card">
+                    <h4>1. GitHub Metric Extractor Node</h4>
+                    <p>Triggers advanced GraphQL queries to pull authentic repository data, commitments, and language footprints securely from live server channels.</p>
+                </div>
+                <div class="card">
+                    <h4>2. CodeBERT Vectorizer Node</h4>
+                    <p>Utilizes HuggingFace CodeBERT transformers to map complex source code text sequences into high-density 768-dimensional AI vector spaces.</p>
+                </div>
+                <div class="card">
+                    <h4>3. PyTorch Fine-Tuning Scoring Node</h4>
+                    <p>Runs neural network backpropagation sequences to update layer configurations and calculate authentic capabilities metrics dynamically.</p>
+                </div>
+                <div class="card">
+                    <h4>4. StarCoder Quality Estimator Node</h4>
+                    <p>Evaluates syntactic deployment blocks, documentation maturity limits, and structural architecture patterns.</p>
+                </div>
+                <div class="card">
+                    <h4>5. Cosine Vector Similarity Search Node</h4>
+                    <p>Compares user embedding matrices against regional vector database spaces to output instant "Find developers like X" recomendation values.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= PAGE 3: TRAINING GUIDE (RUN TIME) ================= -->
+    <div id="page-training-guide" class="page">
+        <div class="content-area">
+            <h2>Local Compilation & Model Status</h2>
+            <p>Follow this deployment layout blueprint to execute and initialize the unified master orchestration pipeline layout on local development nodes:</p>
+            
+            <h3>Environmental Core Elements</h3>
+            <pre>
+# Install required infrastructure packages
+pip install langgraph torch transformers python-dotenv</pre>
+
+            <h3>Pipeline Launch Target Execution</h3>
+            <pre>
+# Boot central pipeline execution flow matrix
+python backend/graph/pipeline.py</pre>
+
+            <div class="card" style="margin-top: 30px; border-left: 4px solid #388bfd;">
+                <h4 style="margin: 0 0 5px 0;">Model Execution Validation</h4>
+                <p>Upon compilation, the terminal will dynamically display step-by-step neural loop weights optimization, structural fine-tuning epochs loss dropping to 0.0000, and comprehensive matrix comparison outputs automatically.</p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Footer Component -->
+    <footer>
+        GitHub Profile AI-Reviewer Documentation • Presented via Adaptive Dynamic Engine
+    </footer>
+
+
+    <!-- Dynamic Multi-Page Router Script -->
+    <script>
+        function navigateTo(pageId) {
+            // 1. Hide all virtual page layers
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active-page'));
+
+            // 2. Remove active state colors from all menu items
+            const navLinks = document.querySelectorAll('.nav-links a');
+            navLinks.forEach(link => link.classList.remove('active'));
+
+            // 3. Show the targeted page layer
+            document.getElementById('page-' + pageId).classList.add('active-page');
+
+            // 4. Highlight the matching navigation menu option
+            const targetNav = document.getElementById('nav-' + pageId);
+            if(targetNav) {
+                targetNav.classList.add('active');
+            }
+
+            // 5. Smooth scroll window back to the top of the new page layout
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Handle browser fallback entry checks based on URL hashes
+        window.addEventListener('DOMContentLoaded', () => {
+            const currentHash = window.location.hash.replace('#', '');
+            if(['home', 'architecture', 'training-guide'].includes(currentHash)) {
+                navigateTo(currentHash);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Data & Models (too large for git)
+data/raw/
+data/processed/
+models_saved/
+experiments/logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.local.yaml
+
+# make-folder-txt
+.txtconfig
+.txtignore
+PolyMentor.txt
+venv312/

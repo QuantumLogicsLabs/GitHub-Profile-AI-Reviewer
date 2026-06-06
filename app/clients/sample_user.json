@@ -1,0 +1,24 @@
+{
+  "data": {
+    "user": {
+      "repositories": {
+        "nodes": [
+          {
+            "name": "demo-repo",
+            "description": "Example repo",
+            "primaryLanguage": {"name": "Python"},
+            "defaultBranchRef": {"target": {"history": {"totalCount": 42}}},
+            "languages": {"edges": [{"node": {"name": "Python"}, "size": 1000}]}
+          }
+        ]
+      },
+      "pullRequests": {"totalCount": 5},
+      "contributionsCollection": {
+        "contributionCalendar": {"totalContributions": 120, "weeks": [
+          {"contributionDays": [{"contributionCount": 0}, {"contributionCount": 1}, {"contributionCount": 1}, {"contributionCount": 0}, {"contributionCount": 2}, {"contributionCount": 3}, {"contributionCount": 0}]},
+          {"contributionDays": [{"contributionCount": 1}, {"contributionCount": 1}, {"contributionCount": 1}, {"contributionCount": 1}, {"contributionCount": 1}, {"contributionCount": 1}, {"contributionCount": 1}]}
+        ]}
+      }
+    }
+  }
+}

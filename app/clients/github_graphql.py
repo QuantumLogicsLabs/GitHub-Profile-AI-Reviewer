@@ -13,9 +13,9 @@ class GitHubAPIError(RuntimeError):
     pass
 
 
-def _headers() -> dict[str, str]:
+def _headers(use_token: bool = True) -> dict[str, str]:
     headers = {"Accept": "application/vnd.github+json"}
-    if settings.github_token:
+    if use_token and settings.github_token:
         headers["Authorization"] = f"Bearer {settings.github_token}"
     return headers
 
@@ -47,6 +47,8 @@ class GitHubGraphQLClient:
             response = await client.post(settings.github_api_url, headers=_headers(), json=payload)
 
         if response.status_code >= 400:
+            if response.status_code == 401:
+                return await self._analyze_public_user(username, use_token=False)
             raise GitHubAPIError(f"GitHub API status={response.status_code}: {response.text}")
 
         data = response.json()
@@ -58,9 +60,9 @@ class GitHubGraphQLClient:
         data["source"] = "graphql"
         return data
 
-    async def _analyze_public_user(self, username: str) -> dict[str, Any]:
+    async def _analyze_public_user(self, username: str, use_token: bool = False) -> dict[str, Any]:
         base_url = settings.github_rest_api_url.rstrip("/")
-        async with httpx.AsyncClient(base_url=base_url, timeout=settings.request_timeout_seconds, headers=_headers()) as client:
+        async with httpx.AsyncClient(base_url=base_url, timeout=settings.request_timeout_seconds, headers=_headers(use_token=use_token)) as client:
             user_response = await client.get(f"/users/{username}")
             if user_response.status_code == 404:
                 raise GitHubAPIError(f"GitHub user '{username}' not found.")

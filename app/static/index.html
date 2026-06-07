@@ -475,7 +475,8 @@ const profileRating = await response.json();`;
         renderResult(data);
         setStatus(`Finished ${username}.`);
       } catch (error) {
-        setStatus(`${error.message}. Check API Base and confirm FastAPI is running on port 8000.`, true);
+        const networkHint = error instanceof TypeError ? " Check API Base and confirm FastAPI is running on port 8000." : "";
+        setStatus(`${error.message}.${networkHint}`, true);
       } finally {
         submitButton.disabled = false;
       }

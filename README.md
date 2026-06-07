@@ -20,6 +20,7 @@ app/
 backend/               Legacy LangGraph prototype pipeline
 experiments/           Standalone prototype files
 scripts/               Developer utilities and CLI helpers
+src/                   React documentation website
 ```
 
 ## Token Behavior
@@ -49,6 +50,21 @@ SCORING_BACKEND=heuristic
 Keep `SCORING_BACKEND=heuristic` unless you have trained model weights. The neural backend is experimental.
 
 ## Run Locally
+
+Run the React documentation website from the repository root:
+
+```powershell
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173/
+```
+
+Run the FastAPI backend separately:
 
 On Windows PowerShell, use a project virtual environment:
 
@@ -110,6 +126,15 @@ docker compose down
 ```
 
 For a cloud VM, install Docker, clone the repo, create `.env`, then run the same `docker compose up --build -d` command. If you deploy behind a domain or reverse proxy, forward public traffic to container port `8000`.
+
+Build the React documentation site:
+
+```bash
+npm install
+npm run build
+```
+
+The static output is generated in `dist/`. You can deploy `dist/` to Netlify, Vercel, GitHub Pages, Nginx, or any static hosting provider.
 
 ## Use The API In `index.html`
 

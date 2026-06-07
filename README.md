@@ -47,9 +47,33 @@ Keep `SCORING_BACKEND=heuristic` unless you have trained model weights. The neur
 
 ## Run Locally
 
+On Windows PowerShell, use a project virtual environment:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+If `py -3.12` is not installed, use your available Python launcher version:
+
+```powershell
+py -0p
+```
+
+The default requirements start the API with deterministic fallback embeddings. Optional ML packages are separate:
+
+```powershell
+python -m pip install -r requirements-ml.txt
+```
+
+On macOS/Linux:
+
 ```bash
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+python3 -m pip install -r requirements.txt
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Open the browser console UI:

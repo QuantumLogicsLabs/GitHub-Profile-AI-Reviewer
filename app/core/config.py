@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
+    cors_origins: str = "http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000,http://127.0.0.1:8000"
 
     github_token: str = Field(default="", alias="GITHUB_TOKEN")
     github_api_url: str = "https://api.github.com/graphql"

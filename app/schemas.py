@@ -20,6 +20,11 @@ class StreakData(BaseModel):
     longest_streak: int
 
 
+class PublicActivity(BaseModel):
+    public_commits: int
+    public_prs_created: int
+
+
 class AnalyzeResponse(BaseModel):
     username: str
     rating_score: int = Field(ge=0, le=100)
@@ -29,6 +34,7 @@ class AnalyzeResponse(BaseModel):
     language_breakdown: dict[str, int]
     hiring_readiness_score: int = Field(ge=0, le=100)
     consistency_score: int = Field(ge=0, le=100)
+    public_activity: PublicActivity
     graphql_signals: GraphQLSignals
     streak_data: StreakData
     model_info: dict[str, Any]

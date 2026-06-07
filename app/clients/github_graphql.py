@@ -132,6 +132,8 @@ class GitHubGraphQLClient:
             repos = repos_response.json()
             repo_nodes = self._build_public_repositories(username, repos)
             weeks = _weeks_from_events(events)
+            public_commits = sum(_event_commit_count(event) for event in events)
+            public_prs_created = sum(1 for event in events if _is_pr_created_event(event))
 
         return {
             "source": "rest-public",
@@ -143,15 +145,20 @@ class GitHubGraphQLClient:
                     "createdAt": user.get("created_at"),
                     "followers": {"totalCount": int(user.get("followers") or 0)},
                     "contributionsCollection": {
-                        "totalCommitContributions": sum(_event_commit_count(event) for event in events),
-                        "totalPullRequestContributions": sum(1 for event in events if event.get("type") == "PullRequestEvent"),
+                        "totalCommitContributions": public_commits,
+                        "totalPullRequestContributions": public_prs_created,
                         "contributionCalendar": {
                             "totalContributions": len(events),
                             "weeks": weeks,
                         },
                     },
                     "repositories": {"nodes": repo_nodes},
-                    "pullRequests": {"totalCount": sum(1 for event in events if event.get("type") == "PullRequestEvent")},
+                    "pullRequests": {"totalCount": public_prs_created},
+                    "publicActivity": {
+                        "publicCommits": public_commits,
+                        "publicPRsCreated": public_prs_created,
+                        "sourceWindow": "recent public events",
+                    },
                 }
             },
         }
@@ -216,6 +223,12 @@ def _event_commit_count(event: dict[str, Any]) -> int:
     if event.get("type") != "PushEvent":
         return 0
     return len(event.get("payload", {}).get("commits", []))
+
+
+def _is_pr_created_event(event: dict[str, Any]) -> bool:
+    if event.get("type") != "PullRequestEvent":
+        return False
+    return event.get("payload", {}).get("action") in {"opened", "reopened"}
 
 
 def _weeks_from_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:

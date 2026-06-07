@@ -332,6 +332,14 @@
             <span>Language</span>
             <strong id="language">--</strong>
           </div>
+          <div class="metric">
+            <span>Public Commits</span>
+            <strong id="public-commits">--</strong>
+          </div>
+          <div class="metric">
+            <span>Public PRs Created</span>
+            <strong id="public-prs">--</strong>
+          </div>
         </div>
 
         <div class="panel">
@@ -384,6 +392,8 @@ Content-Type: application/json
       rating: document.getElementById("rating"),
       level: document.getElementById("level"),
       language: document.getElementById("language"),
+      publicCommits: document.getElementById("public-commits"),
+      publicPrs: document.getElementById("public-prs"),
       breakdown: document.getElementById("language-breakdown")
     };
 
@@ -420,6 +430,8 @@ const profileRating = await response.json();`;
       fields.rating.textContent = Number.isFinite(data.rating_score) ? `${data.rating_score}` : "--";
       fields.level.textContent = data.developer_level || "--";
       fields.language.textContent = data.strongest_language || "--";
+      fields.publicCommits.textContent = data.public_activity ? `${data.public_activity.public_commits}` : "--";
+      fields.publicPrs.textContent = data.public_activity ? `${data.public_activity.public_prs_created}` : "--";
       fields.breakdown.innerHTML = "";
 
       const entries = Object.entries(data.language_breakdown || {});

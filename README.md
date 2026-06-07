@@ -148,4 +148,8 @@ fetch("https://your-domain.com/analyze", {
 
 - `rating_score`: main score from 0 to 100.
 - `hiring_readiness_score`: compatibility alias for the same 0 to 100 score.
+- `public_activity.public_commits`: public commits counted for the user.
+- `public_activity.public_prs_created`: public pull requests created by the user.
 - `model_info.data_source`: `graphql` when a server token is configured, otherwise `rest-public`.
+
+In `rest-public` mode, GitHub exposes these counts from recent public events only. With authenticated GraphQL mode, the counts come from GitHub's contribution totals.

@@ -37,12 +37,18 @@ def _extract_features(user: dict[str, Any]) -> tuple[dict[str, int], dict[str, i
             language_sizes[lang_name] += int(edge.get("size", 0))
 
     merged_prs = int(user.get("pullRequests", {}).get("totalCount", 0))
-    total_contributions = int(user.get("contributionsCollection", {}).get("contributionCalendar", {}).get("totalContributions", 0))
+    contributions = user.get("contributionsCollection", {})
+    public_activity = user.get("publicActivity", {})
+    public_commits = int(public_activity.get("publicCommits", contributions.get("totalCommitContributions", 0)) or 0)
+    public_prs_created = int(public_activity.get("publicPRsCreated", contributions.get("totalPullRequestContributions", 0)) or 0)
+    total_contributions = int(contributions.get("contributionCalendar", {}).get("totalContributions", 0))
     followers = int(user.get("followers", {}).get("totalCount", 0))
     metrics = {
         "repo_count": len(repositories),
         "total_commits": total_commits,
         "merged_prs": merged_prs,
+        "public_commits": public_commits,
+        "public_prs_created": public_prs_created,
         "total_contributions": total_contributions,
         "total_stars": total_stars,
         "total_forks": total_forks,
@@ -117,6 +123,10 @@ class AnalyzerWorkflow:
             "language_breakdown": breakdown,
             "hiring_readiness_score": scored.hiring_score,
             "consistency_score": consistency_score,
+            "public_activity": {
+                "public_commits": metrics["public_commits"],
+                "public_prs_created": metrics["public_prs_created"],
+            },
             "graphql_signals": {
                 "total_commits": metrics["total_commits"],
                 "merged_prs": metrics["merged_prs"],

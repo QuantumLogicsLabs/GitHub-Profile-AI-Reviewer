@@ -4,6 +4,24 @@ FastAPI service that rates a public GitHub user profile out of 100.
 
 The API accepts a GitHub username and returns a `rating_score`, developer level, language breakdown, contribution signals, streak data, and model metadata.
 
+## Folder Structure
+
+```text
+app/
+  main.py              FastAPI app entrypoint and static frontend serving
+  api/                 HTTP routes for health checks and profile analysis
+  schemas.py           Request and response models
+  service.py           Application service layer
+  ai/                  Embedding and scoring logic
+  clients/             GitHub API clients and queries
+  core/                Settings and logging
+  graph/               Active analysis workflow
+  static/index.html    Browser API console
+backend/               Legacy LangGraph prototype pipeline
+experiments/           Standalone prototype files
+scripts/               Developer utilities and CLI helpers
+```
+
 ## Token Behavior
 
 `GITHUB_TOKEN` is optional.
@@ -34,6 +52,12 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+Open the browser console UI:
+
+```text
+http://localhost:8000/
+```
+
 Request a rating:
 
 ```bash
@@ -48,7 +72,50 @@ curl -X POST http://localhost:8000/analyze \
 docker compose up --build -d
 ```
 
-The API will be available on `http://localhost:${APP_PORT:-8000}`.
+The API and `index.html` console will be available on `http://localhost:${APP_PORT:-8000}`.
+
+Useful deployment commands:
+
+```bash
+docker compose ps
+docker compose logs -f api
+docker compose down
+```
+
+For a cloud VM, install Docker, clone the repo, create `.env`, then run the same `docker compose up --build -d` command. If you deploy behind a domain or reverse proxy, forward public traffic to container port `8000`.
+
+## Use The API In `index.html`
+
+The frontend at `app/static/index.html` calls the API with `fetch`:
+
+```html
+<script>
+async function analyze(username) {
+  const response = await fetch("/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Analyze request failed");
+  }
+
+  return response.json();
+}
+</script>
+```
+
+Use a full base URL only when the HTML is hosted somewhere else:
+
+```js
+fetch("https://your-domain.com/analyze", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username: "octocat" })
+});
+```
 
 ## Response Fields
 

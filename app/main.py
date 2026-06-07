@@ -1,36 +1,24 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
 
-from app.clients.github_graphql import GitHubAPIError
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.api.routes import router
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.schemas import AnalyzeRequest, AnalyzeResponse
-from app.service import AnalyzerService
 
 setup_logging()
 
 app = FastAPI(title=settings.app_name, version=settings.app_version)
-service: AnalyzerService | None = None
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+app.include_router(router)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
-def get_service() -> AnalyzerService:
-    global service
-    if service is None:
-        service = AnalyzerService()
-    return service
-
-
-@app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
-    try:
-        return await get_service().analyze(payload.username)
-    except GitHubAPIError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+@app.get("/")
+async def index() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Profile AI Reviewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f13;
+      --panel: #121820;
+      --panel-soft: #18212b;
+      --line: #263241;
+      --text: #eef3f8;
+      --muted: #93a4b7;
+      --accent: #3fbf8f;
+      --accent-strong: #54d6a5;
+      --warn: #f7c56b;
+      --danger: #ff7b7b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(11, 15, 19, 0.94);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+
+    .nav {
+      align-items: center;
+      display: flex;
+      gap: 18px;
+      justify-content: space-between;
+      margin: 0 auto;
+      max-width: 1120px;
+      padding: 16px 20px;
+    }
+
+    .brand {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .mark {
+      align-items: center;
+      aspect-ratio: 1;
+      background: var(--accent);
+      border-radius: 6px;
+      color: #06110d;
+      display: inline-flex;
+      font-weight: 900;
+      justify-content: center;
+      width: 32px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 7px 12px;
+      white-space: nowrap;
+    }
+
+    main {
+      margin: 0 auto;
+      max-width: 1120px;
+      padding: 32px 20px 56px;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      align-items: start;
+    }
+
+    .hero {
+      padding: 14px 0 22px;
+    }
+
+    h1 {
+      font-size: clamp(34px, 6vw, 62px);
+      letter-spacing: 0;
+      line-height: 1.02;
+      margin: 0 0 16px;
+      max-width: 780px;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.6;
+      margin: 0;
+      max-width: 720px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .analyzer {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      color: var(--muted);
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .input-row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    input {
+      background: #0e141a;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font: inherit;
+      min-height: 46px;
+      outline: none;
+      padding: 0 13px;
+      width: 100%;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(63, 191, 143, 0.16);
+    }
+
+    button {
+      background: var(--accent);
+      border: 0;
+      border-radius: 6px;
+      color: #05110d;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      min-height: 46px;
+      padding: 0 18px;
+      white-space: nowrap;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
+    .result-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .metric {
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 92px;
+      padding: 14px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+      margin-top: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .score strong {
+      color: var(--accent-strong);
+      font-size: 48px;
+    }
+
+    .status {
+      color: var(--muted);
+      min-height: 22px;
+    }
+
+    .error {
+      color: var(--danger);
+    }
+
+    .language-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .language-list span {
+      background: #0e141a;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 7px 10px;
+    }
+
+    pre {
+      background: #080c10;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #b7c7d8;
+      font-size: 13px;
+      line-height: 1.55;
+      margin: 0;
+      overflow-x: auto;
+      padding: 14px;
+    }
+
+    .side {
+      display: grid;
+      gap: 20px;
+    }
+
+    .side h2,
+    .panel h2 {
+      font-size: 16px;
+      margin: 0 0 12px;
+    }
+
+    .api-base {
+      margin-bottom: 14px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 10px 0 0;
+    }
+
+    @media (max-width: 860px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .input-row {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <div class="brand"><span class="mark">G</span> GitHub Profile AI Reviewer</div>
+      <div class="pill" id="health-pill">API status: checking</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Rate any public GitHub profile out of 100.</h1>
+      <p class="lead">Submit a username and the API returns a developer rating, level, contribution signals, language mix, and scoring metadata. A server token is optional.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="panel analyzer">
+        <form id="analyze-form">
+          <label for="username">GitHub username</label>
+          <div class="input-row">
+            <input id="username" name="username" value="octocat" autocomplete="off" maxlength="39" pattern="[A-Za-z0-9-]+" required>
+            <button id="submit-button" type="submit">Analyze</button>
+          </div>
+        </form>
+
+        <div class="status" id="status">Ready.</div>
+
+        <div class="result-grid">
+          <div class="metric score">
+            <span>Rating</span>
+            <strong id="rating">--</strong>
+          </div>
+          <div class="metric">
+            <span>Level</span>
+            <strong id="level">--</strong>
+          </div>
+          <div class="metric">
+            <span>Language</span>
+            <strong id="language">--</strong>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Language Breakdown</h2>
+          <div class="language-list" id="language-breakdown"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Raw API Response</h2>
+          <pre id="response">{}</pre>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h2>API Base</h2>
+          <input class="api-base" id="api-base" value="">
+          <p class="small">Leave this as the current origin when this page is served by FastAPI. Use `http://localhost:8000` if opening the HTML file directly.</p>
+        </div>
+
+        <div class="panel">
+          <h2>Fetch Example</h2>
+          <pre id="fetch-example"></pre>
+        </div>
+
+        <div class="panel">
+          <h2>Endpoint</h2>
+          <pre>POST /analyze
+Content-Type: application/json
+
+{
+  "username": "octocat"
+}</pre>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("analyze-form");
+    const usernameInput = document.getElementById("username");
+    const apiBaseInput = document.getElementById("api-base");
+    const submitButton = document.getElementById("submit-button");
+    const statusText = document.getElementById("status");
+    const healthPill = document.getElementById("health-pill");
+    const responseBox = document.getElementById("response");
+    const fetchExample = document.getElementById("fetch-example");
+
+    const fields = {
+      rating: document.getElementById("rating"),
+      level: document.getElementById("level"),
+      language: document.getElementById("language"),
+      breakdown: document.getElementById("language-breakdown")
+    };
+
+    apiBaseInput.value = window.location.protocol === "file:" ? "http://localhost:8000" : window.location.origin;
+
+    function endpoint(path) {
+      return `${apiBaseInput.value.replace(/\/$/, "")}${path}`;
+    }
+
+    function setStatus(message, isError = false) {
+      statusText.textContent = message;
+      statusText.classList.toggle("error", isError);
+    }
+
+    function updateFetchExample() {
+      const username = usernameInput.value || "octocat";
+      fetchExample.textContent = `const response = await fetch("${endpoint("/analyze")}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username: "${username}" })
+});
+
+const profileRating = await response.json();`;
+    }
+
+    function renderResult(data) {
+      fields.rating.textContent = Number.isFinite(data.rating_score) ? `${data.rating_score}` : "--";
+      fields.level.textContent = data.developer_level || "--";
+      fields.language.textContent = data.strongest_language || "--";
+      fields.breakdown.innerHTML = "";
+
+      const entries = Object.entries(data.language_breakdown || {});
+      if (!entries.length) {
+        const empty = document.createElement("span");
+        empty.textContent = "No language data";
+        fields.breakdown.appendChild(empty);
+      }
+
+      for (const [language, percent] of entries) {
+        const item = document.createElement("span");
+        item.textContent = `${language}: ${percent}%`;
+        fields.breakdown.appendChild(item);
+      }
+
+      responseBox.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function checkHealth() {
+      try {
+        const response = await fetch(endpoint("/health"));
+        healthPill.textContent = response.ok ? "API status: online" : "API status: unavailable";
+      } catch {
+        healthPill.textContent = "API status: offline";
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const username = usernameInput.value.trim();
+      if (!username) {
+        setStatus("Enter a GitHub username.", true);
+        return;
+      }
+
+      submitButton.disabled = true;
+      setStatus(`Analyzing ${username}...`);
+      updateFetchExample();
+
+      try {
+        const response = await fetch(endpoint("/analyze"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Request failed.");
+        }
+
+        renderResult(data);
+        setStatus(`Finished ${username}.`);
+      } catch (error) {
+        setStatus(error.message, true);
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+
+    usernameInput.addEventListener("input", updateFetchExample);
+    apiBaseInput.addEventListener("input", () => {
+      updateFetchExample();
+      checkHealth();
+    });
+
+    updateFetchExample();
+    checkHealth();
+  </script>
+</body>
+</html>

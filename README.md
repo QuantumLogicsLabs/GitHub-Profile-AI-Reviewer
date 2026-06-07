@@ -28,6 +28,8 @@ scripts/               Developer utilities and CLI helpers
 
 When `GITHUB_TOKEN` is set, the service uses GitHub GraphQL for richer profile and contribution data. When it is empty, users can still rate any public GitHub username through GitHub's public REST API. Public REST mode is limited by GitHub's unauthenticated rate limits and cannot see private contribution data.
 
+If you hit GitHub's public rate limit, add a valid token to `.env` and restart the server. Public mode keeps its request count low and caches successful GitHub responses for `GITHUB_CACHE_TTL_SECONDS` to avoid wasting quota during repeated tests.
+
 ## Environment
 
 Copy `.env.example` to `.env` and adjust only what you need:
@@ -36,8 +38,9 @@ Copy `.env.example` to `.env` and adjust only what you need:
 GITHUB_TOKEN=
 GITHUB_API_URL=https://api.github.com/graphql
 GITHUB_REST_API_URL=https://api.github.com
-GITHUB_PUBLIC_REPO_LIMIT=30
-GITHUB_FETCH_COMMIT_COUNTS=true
+GITHUB_PUBLIC_REPO_LIMIT=20
+GITHUB_FETCH_COMMIT_COUNTS=false
+GITHUB_CACHE_TTL_SECONDS=900
 APP_HOST=0.0.0.0
 APP_PORT=8000
 SCORING_BACKEND=heuristic

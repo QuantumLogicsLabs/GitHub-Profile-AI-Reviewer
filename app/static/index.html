@@ -469,14 +469,18 @@ const profileRating = await response.json();`;
         const text = await response.text();
         const data = text ? JSON.parse(text) : {};
         if (!response.ok) {
-          throw new Error(data.detail || "Request failed.");
+          const error = new Error(data.detail || "Request failed.");
+          error.isHttpError = true;
+          throw error;
         }
 
         renderResult(data);
         setStatus(`Finished ${username}.`);
       } catch (error) {
-        const networkHint = error instanceof TypeError ? " Check API Base and confirm FastAPI is running on port 8000." : "";
-        setStatus(`${error.message}.${networkHint}`, true);
+        const networkHint = error instanceof TypeError && !error.isHttpError
+          ? " Check API Base and confirm FastAPI is running on port 8000."
+          : "";
+        setStatus(`${error.message}${networkHint}`, true);
       } finally {
         submitButton.disabled = false;
       }

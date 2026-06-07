@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import math
 from typing import Any
 
 from app.ai.embeddings import CodeEmbeddingService
@@ -11,17 +12,21 @@ from app.clients.streak import compute_streak_from_calendar
 from app.graph.state import ProfileState
 
 
-def _extract_features(user: dict[str, Any]) -> tuple[dict[str, int], int, int, int, list[str]]:
+def _extract_features(user: dict[str, Any]) -> tuple[dict[str, int], dict[str, int], list[str]]:
     repositories = user.get("repositories", {}).get("nodes", [])
     language_sizes: dict[str, int] = defaultdict(int)
     repo_snippets: list[str] = []
     total_commits = 0
+    total_stars = 0
+    total_forks = 0
 
     for repo in repositories:
         name = repo.get("name") or ""
         desc = repo.get("description") or ""
         primary = (repo.get("primaryLanguage") or {}).get("name") or ""
         repo_snippets.append(f"repo:{name} lang:{primary} desc:{desc}")
+        total_stars += int(repo.get("stargazerCount", 0))
+        total_forks += int(repo.get("forkCount", 0))
 
         default_branch = repo.get("defaultBranchRef") or {}
         history = (default_branch.get("target") or {}).get("history", {})
@@ -33,14 +38,42 @@ def _extract_features(user: dict[str, Any]) -> tuple[dict[str, int], int, int, i
 
     merged_prs = int(user.get("pullRequests", {}).get("totalCount", 0))
     total_contributions = int(user.get("contributionsCollection", {}).get("contributionCalendar", {}).get("totalContributions", 0))
-    return dict(language_sizes), total_commits, merged_prs, total_contributions, repo_snippets
+    followers = int(user.get("followers", {}).get("totalCount", 0))
+    metrics = {
+        "repo_count": len(repositories),
+        "total_commits": total_commits,
+        "merged_prs": merged_prs,
+        "total_contributions": total_contributions,
+        "total_stars": total_stars,
+        "total_forks": total_forks,
+        "followers": followers,
+    }
+    return dict(language_sizes), metrics, repo_snippets
 
 
-def _normalize_activity(total_contributions: int, total_commits: int, merged_prs: int) -> int:
-    a = min(45, total_contributions // 20)
-    b = min(30, total_commits // 40)
-    c = min(25, merged_prs // 4)
-    return int(max(0, min(100, a + b + c)))
+def _scale_log(value: int, weight: int, factor: float = 2.0) -> int:
+    return min(weight, int(math.log1p(max(value, 0)) * factor))
+
+
+def _normalize_activity(metrics: dict[str, int], data_source: str) -> int:
+    contribution_divisor = 12 if data_source == "rest-public" else 25
+    score = 0
+    score += min(30, metrics["total_contributions"] // contribution_divisor)
+    score += min(18, metrics["repo_count"] * 2)
+    score += min(17, metrics["total_commits"] // 80)
+    score += min(12, metrics["merged_prs"] // 3)
+    score += _scale_log(metrics["total_stars"], 10, 2.2)
+    score += _scale_log(metrics["total_forks"], 6, 2.0)
+    score += _scale_log(metrics["followers"], 7, 1.8)
+    return int(max(0, min(100, score)))
+
+
+def _normalize_consistency(current_streak: int, longest_streak: int) -> int:
+    if longest_streak <= 0:
+        return 0
+    active_now = min(35, current_streak * 5)
+    proven_consistency = min(65, longest_streak * 3)
+    return int(max(0, min(100, active_now + proven_consistency)))
 
 
 def _language_breakdown(language_sizes: dict[str, int]) -> tuple[str, dict[str, int]]:
@@ -64,15 +97,15 @@ class AnalyzerWorkflow:
         state["graphql_data"] = raw
 
         user = raw["data"]["user"]
-        lang_sizes, total_commits, merged_prs, total_contributions, snippets = _extract_features(user)
+        lang_sizes, metrics, snippets = _extract_features(user)
         strongest_language, breakdown = _language_breakdown(lang_sizes)
 
         weeks = user.get("contributionsCollection", {}).get("contributionCalendar", {}).get("weeks", [])
         streak = compute_streak_from_calendar(weeks)
-        consistency_score = int((streak.current_streak / streak.longest_streak) * 100) if streak.longest_streak > 0 else 0
+        consistency_score = _normalize_consistency(streak.current_streak, streak.longest_streak)
 
         embedding = self._embedder.embed_repository_signals(snippets)
-        activity_score = _normalize_activity(total_contributions, total_commits, merged_prs)
+        activity_score = _normalize_activity(metrics, raw.get("source", "graphql"))
         scored = self._scorer.infer(embedding, activity_score, consistency_score)
 
         state["final_report"] = {
@@ -85,9 +118,9 @@ class AnalyzerWorkflow:
             "hiring_readiness_score": scored.hiring_score,
             "consistency_score": consistency_score,
             "graphql_signals": {
-                "total_commits": total_commits,
-                "merged_prs": merged_prs,
-                "total_contributions": total_contributions,
+                "total_commits": metrics["total_commits"],
+                "merged_prs": metrics["merged_prs"],
+                "total_contributions": metrics["total_contributions"],
             },
             "streak_data": {
                 "current_streak": streak.current_streak,
@@ -99,6 +132,12 @@ class AnalyzerWorkflow:
                 "embedding_dim": self._embedder.embedding_dim,
                 "embedding_backend": "transformers" if self._embedder.ready else "deterministic-fallback",
                 "data_source": raw.get("source", "graphql"),
+                "public_metrics": {
+                    "repositories": metrics["repo_count"],
+                    "stars": metrics["total_stars"],
+                    "forks": metrics["total_forks"],
+                    "followers": metrics["followers"],
+                },
             },
         }
         return state

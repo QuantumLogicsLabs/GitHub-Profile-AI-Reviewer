@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import time
 from typing import Any
 
 import httpx
@@ -11,6 +12,9 @@ from app.core.config import settings
 
 class GitHubAPIError(RuntimeError):
     pass
+
+
+_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 def _headers(use_token: bool = True) -> dict[str, str]:
@@ -36,10 +40,46 @@ def _extract_total_count(response: httpx.Response, fallback: int) -> int:
     return fallback
 
 
+def _cache_get(key: str) -> dict[str, Any] | None:
+    item = _CACHE.get(key)
+    if item is None:
+        return None
+    expires_at, value = item
+    if expires_at < time.time():
+        _CACHE.pop(key, None)
+        return None
+    return value
+
+
+def _cache_set(key: str, value: dict[str, Any]) -> dict[str, Any]:
+    _CACHE[key] = (time.time() + settings.github_cache_ttl_seconds, value)
+    return value
+
+
+def _github_error(response: httpx.Response) -> GitHubAPIError:
+    if response.status_code == 403 and "rate limit" in response.text.lower():
+        reset = response.headers.get("X-RateLimit-Reset")
+        reset_hint = ""
+        if reset and reset.isdigit():
+            reset_at = datetime.fromtimestamp(int(reset), tz=UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+            reset_hint = f" Rate limit resets at {reset_at}."
+        return GitHubAPIError(
+            "GitHub public API rate limit exceeded."
+            " Add a valid GITHUB_TOKEN in .env and restart the server, or wait for the limit to reset."
+            f"{reset_hint}"
+        )
+    return GitHubAPIError(f"GitHub API status={response.status_code}: {response.text}")
+
+
 class GitHubGraphQLClient:
     async def analyze_user(self, username: str) -> dict[str, Any]:
+        cache_key = f"github:{username.lower()}:{'graphql' if settings.github_token else 'public'}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         if not settings.github_token:
-            return await self._analyze_public_user(username)
+            return _cache_set(cache_key, await self._analyze_public_user(username))
 
         payload = {"query": ANALYZE_PROFILE_QUERY, "variables": {"username": username}}
 
@@ -48,8 +88,12 @@ class GitHubGraphQLClient:
 
         if response.status_code >= 400:
             if response.status_code == 401:
-                return await self._analyze_public_user(username, use_token=False)
-            raise GitHubAPIError(f"GitHub API status={response.status_code}: {response.text}")
+                public_key = f"github:{username.lower()}:public"
+                cached_public = _cache_get(public_key)
+                if cached_public is not None:
+                    return cached_public
+                return _cache_set(public_key, await self._analyze_public_user(username, use_token=False))
+            raise _github_error(response)
 
         data = response.json()
         if data.get("errors"):
@@ -58,7 +102,7 @@ class GitHubGraphQLClient:
             raise GitHubAPIError(f"GitHub user '{username}' not found.")
 
         data["source"] = "graphql"
-        return data
+        return _cache_set(cache_key, data)
 
     async def _analyze_public_user(self, username: str, use_token: bool = False) -> dict[str, Any]:
         base_url = settings.github_rest_api_url.rstrip("/")
@@ -67,7 +111,7 @@ class GitHubGraphQLClient:
             if user_response.status_code == 404:
                 raise GitHubAPIError(f"GitHub user '{username}' not found.")
             if user_response.status_code >= 400:
-                raise GitHubAPIError(f"GitHub API status={user_response.status_code}: {user_response.text}")
+                raise _github_error(user_response)
 
             repos_response = await client.get(
                 f"/users/{username}/repos",
@@ -79,14 +123,14 @@ class GitHubGraphQLClient:
                 },
             )
             if repos_response.status_code >= 400:
-                raise GitHubAPIError(f"GitHub API status={repos_response.status_code}: {repos_response.text}")
+                raise _github_error(repos_response)
 
             events_response = await client.get(f"/users/{username}/events/public", params={"per_page": 100})
             events = events_response.json() if events_response.status_code < 400 else []
 
             user = user_response.json()
             repos = repos_response.json()
-            repo_nodes = await self._build_public_repositories(client, username, repos)
+            repo_nodes = self._build_public_repositories(username, repos)
             weeks = _weeks_from_events(events)
 
         return {
@@ -112,7 +156,7 @@ class GitHubGraphQLClient:
             },
         }
 
-    async def _build_public_repositories(self, client: httpx.AsyncClient, username: str, repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _build_public_repositories(self, username: str, repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         nodes: list[dict[str, Any]] = []
         for repo in repos:
             owner = repo.get("owner", {}).get("login") or username
@@ -120,8 +164,8 @@ class GitHubGraphQLClient:
             if not name:
                 continue
 
-            languages = await self._fetch_repo_languages(client, owner, name)
-            total_commits = await self._fetch_commit_count(client, owner, name, repo.get("default_branch"))
+            primary_language = repo.get("language")
+            repo_size = int(repo.get("size") or 0)
             nodes.append(
                 {
                     "name": name,
@@ -129,17 +173,22 @@ class GitHubGraphQLClient:
                     "description": repo.get("description"),
                     "stargazerCount": int(repo.get("stargazers_count") or 0),
                     "forkCount": int(repo.get("forks_count") or 0),
-                    "primaryLanguage": {"name": repo.get("language")} if repo.get("language") else None,
+                    "primaryLanguage": {"name": primary_language} if primary_language else None,
                     "languages": {
                         "edges": [
-                            {"size": int(size), "node": {"name": language}}
-                            for language, size in sorted(languages.items(), key=lambda item: item[1], reverse=True)[:5]
-                        ]
+                            {"size": max(repo_size, 1), "node": {"name": primary_language}}
+                        ] if primary_language else []
                     },
                     "defaultBranchRef": {
                         "target": {
-                            "history": {"totalCount": total_commits},
+                            "history": {"totalCount": 0},
                         }
+                    },
+                    "publicSignals": {
+                        "updatedAt": repo.get("updated_at"),
+                        "pushedAt": repo.get("pushed_at"),
+                        "isFork": bool(repo.get("fork")),
+                        "openIssues": int(repo.get("open_issues_count") or 0),
                     },
                 }
             )

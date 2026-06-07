@@ -142,20 +142,20 @@ The frontend at `app/static/index.html` calls the API with `fetch`:
 
 ```html
 <script>
-async function analyze(username) {
-  const response = await fetch("/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username })
-  });
+  async function analyze(username) {
+    const response = await fetch("/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Analyze request failed");
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Analyze request failed");
+    }
+
+    return response.json();
   }
-
-  return response.json();
-}
 </script>
 ```
 
@@ -165,7 +165,7 @@ Use a full base URL only when the HTML is hosted somewhere else:
 fetch("https://your-domain.com/analyze", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: "octocat" })
+  body: JSON.stringify({ username: "octocat" }),
 });
 ```
 

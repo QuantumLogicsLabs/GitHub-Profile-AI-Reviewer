@@ -1,9 +1,12 @@
-FROM pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime
+FROM python:3.12-slim
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV APP_HOST=0.0.0.0
+ENV APP_PORT=7860
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 7860
+CMD uvicorn app.main:app --host "${APP_HOST}" --port "${APP_PORT}"

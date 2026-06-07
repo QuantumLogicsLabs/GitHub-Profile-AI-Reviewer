@@ -1,3 +1,13 @@
+---
+title: GitHub Profile AI Reviewer
+emoji: 🧪
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # GitHub Profile AI Reviewer
 
 FastAPI service that rates a public GitHub user profile out of 100.

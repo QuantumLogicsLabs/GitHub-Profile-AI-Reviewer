@@ -3,17 +3,19 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:8000"
     environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_API_URL=${GITHUB_API_URL:-https://api.github.com/graphql}
+      - GITHUB_REST_API_URL=${GITHUB_REST_API_URL:-https://api.github.com}
+      - GITHUB_PUBLIC_REPO_LIMIT=${GITHUB_PUBLIC_REPO_LIMIT:-30}
+      - GITHUB_FETCH_COMMIT_COUNTS=${GITHUB_FETCH_COMMIT_COUNTS:-true}
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - SCORING_BACKEND=${SCORING_BACKEND:-heuristic}
     volumes:
       - hf_cache:/root/.cache/huggingface
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
   redis:
     image: redis:7-alpine
     ports:

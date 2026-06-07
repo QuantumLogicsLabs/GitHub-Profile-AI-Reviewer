@@ -12,9 +12,13 @@ class Settings(BaseSettings):
 
     github_token: str = Field(default="", alias="GITHUB_TOKEN")
     github_api_url: str = "https://api.github.com/graphql"
+    github_rest_api_url: str = "https://api.github.com"
+    github_public_repo_limit: int = 30
+    github_fetch_commit_counts: bool = True
 
     codebert_model: str = "microsoft/codebert-base"
     embedding_dim: int = 768
+    scoring_backend: str = "heuristic"
     request_timeout_seconds: float = 30.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)

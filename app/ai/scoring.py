@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.core.config import settings
+
 try:
     import torch
     import torch.nn as nn
@@ -49,7 +51,7 @@ class ScoringEngine:
         self._model = DeveloperScoringModel(input_dim=input_dim)
 
     def infer(self, embedding: list[float], activity_score: float, consistency_score: float) -> ScoreOutput:
-        if torch is None or nn is None or not isinstance(self._model, nn.Module):
+        if settings.scoring_backend.lower() != "neural" or torch is None or nn is None or not isinstance(self._model, nn.Module):
             return self._heuristic(activity_score, consistency_score)
 
         x = torch.tensor([embedding], dtype=torch.float32)

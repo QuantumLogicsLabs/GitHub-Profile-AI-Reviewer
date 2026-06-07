@@ -1,12 +1,14 @@
+import os
 import requests
 import json
 
-# 1. GitHub Token and Configuration
-GITHUB_TOKEN = "YOUR_GITHUB_TOKEN_HERE" 
-USERNAME = "octocat" 
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+USERNAME = os.getenv("GITHUB_USERNAME", "octocat")
 
-url = "https://api.github.com/graphql"
-headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+url = os.getenv("GITHUB_API_URL", "https://api.github.com/graphql")
+headers = {"Accept": "application/vnd.github+json"}
+if GITHUB_TOKEN:
+    headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
 
 
 query = """
@@ -36,10 +38,10 @@ variables = {"username": USERNAME}
 
 print(f"Fetching GitHub data for user: {USERNAME}...")
 
-# 3. API Request 
+# 3. API Request
 try:
     response = requests.post(url, json={'query': query, 'variables': variables}, headers=headers)
-    
+
     if response.status_code == 200:
         data = response.json()
         print("\nGraphQL Query Success!")

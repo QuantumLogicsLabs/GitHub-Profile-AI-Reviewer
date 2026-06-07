@@ -1,3 +1,4 @@
+import os
 import requests
 
 def github_node(state: dict) -> dict:
@@ -10,9 +11,11 @@ def github_node(state: dict) -> dict:
     print(f" [GitHub Node] Executing GraphQL query for user: {username}")
 
     # 2. Configuration & Query Structure
-    GITHUB_TOKEN = state.get("github_token", "YOUR_GITHUB_TOKEN_HERE")
-    url = "https://api.github.com/graphql"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    github_token = state.get("github_token") or os.getenv("GITHUB_TOKEN", "")
+    url = os.getenv("GITHUB_API_URL", "https://api.github.com/graphql")
+    headers = {"Accept": "application/vnd.github+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
 
     query = """
     query($username: String!) {
@@ -41,7 +44,7 @@ def github_node(state: dict) -> dict:
     # 3. Execution Logic
     try:
         response = requests.post(url, json={'query': query, 'variables': variables}, headers=headers)
-        
+
         if response.status_code == 200:
             raw_data = response.json()
             # State update karna custom key ke sath

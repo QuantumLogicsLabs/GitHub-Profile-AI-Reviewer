@@ -22,12 +22,13 @@ class StreakData(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     username: str
+    rating_score: int = Field(ge=0, le=100)
     developer_level: str
     confidence: float
     strongest_language: str
     language_breakdown: dict[str, int]
-    hiring_readiness_score: int
-    consistency_score: int
+    hiring_readiness_score: int = Field(ge=0, le=100)
+    consistency_score: int = Field(ge=0, le=100)
     graphql_signals: GraphQLSignals
     streak_data: StreakData
     model_info: dict[str, Any]

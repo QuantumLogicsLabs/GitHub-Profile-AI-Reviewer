@@ -6,6 +6,7 @@ from typing import Any
 from app.ai.embeddings import CodeEmbeddingService
 from app.ai.scoring import ScoringEngine
 from app.clients.github_graphql import GitHubGraphQLClient
+from app.core.config import settings
 from app.clients.streak import compute_streak_from_calendar
 from app.graph.state import ProfileState
 
@@ -76,6 +77,7 @@ class AnalyzerWorkflow:
 
         state["final_report"] = {
             "username": username,
+            "rating_score": scored.hiring_score,
             "developer_level": scored.level,
             "confidence": scored.confidence,
             "strongest_language": strongest_language,
@@ -93,9 +95,10 @@ class AnalyzerWorkflow:
             },
             "model_info": {
                 "embedding_model": "microsoft/codebert-base",
-                "scoring_model": "DeveloperScoringModel",
+                "scoring_model": settings.scoring_backend,
                 "embedding_dim": self._embedder.embedding_dim,
                 "embedding_backend": "transformers" if self._embedder.ready else "deterministic-fallback",
+                "data_source": raw.get("source", "graphql"),
             },
         }
         return state

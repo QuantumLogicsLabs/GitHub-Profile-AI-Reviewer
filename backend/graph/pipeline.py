@@ -4,6 +4,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from langgraph.graph import StateGraph, END
+from backend.graph.state import PipelineState
 from typing import Dict, Any
 
 # 1. Importing all functional pipeline nodes (Including new AI/ML nodes)
@@ -14,7 +15,7 @@ from backend.graph.nodes.starcoder_node import starcoder_node
 from backend.graph.nodes.similarity_node import similarity_node
 
 # 2. Initialize LangGraph StateGraph Architecture
-workflow = StateGraph(dict)
+workflow = StateGraph(PipelineState)
 
 # 3. Injecting all pipeline operational nodes into the workflow
 workflow.add_node("fetch_github_metrics", github_node)

@@ -13,14 +13,16 @@ class DeveloperScoringModel(nn.Module):
 def scoring_node(state: dict) -> dict:
     print(" [Scoring Node] Calculating developer capability scores using PyTorch layer...")
     
-    # Extract structural code shape dimensions from previous node or set default
-    vector_shape = state.get("embedding_vector_shape", [1, 7, 768])
-    
-    # Generate mock tensor data using structural context constraints
-    mock_embeddings = torch.randn(vector_shape[0], vector_shape[1], vector_shape[2])
-    
-    # Calculate matrix mean dimensions down to target layer requirements
-    mean_embedding = mock_embeddings.mean(dim=1)
+    # Extract REAL embedding vector jo embedding_node ne banaya tha (mock nahi ab)
+    embedding_vector = state.get("embedding_vector")
+
+    if not embedding_vector:
+        state["pytorch_developer_score"] = 0.0
+        state["scoring_status"] = "FAILED: no embedding_vector found in state"
+        print(" [Scoring Node] No real embedding found, skipping scoring.")
+        return state
+
+    mean_embedding = torch.tensor([embedding_vector], dtype=torch.float32)
     
     # Pass through PyTorch Neural Network architecture
     model = DeveloperScoringModel()
@@ -37,5 +39,5 @@ def scoring_node(state: dict) -> dict:
 
 if __name__ == "__main__":
     print(" Testing Scoring Node locally...")
-    dummy_state = {"embedding_vector_shape": [1, 7, 768]}
+    dummy_state = {"embedding_vector": [0.1] * 768}
     print(scoring_node(dummy_state))

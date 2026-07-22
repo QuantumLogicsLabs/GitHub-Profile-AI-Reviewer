@@ -39,7 +39,11 @@ def calculate_experience(repo_data):
 
         # 4. Extracting structural metadata to return into graph state space
         vector_shape = list(context_embeddings.shape)
-        
+
+        # Mean pooling: (1, tokens, 768) -> (768,) 
+        pooled_vector = context_embeddings.mean(dim=1).squeeze(0)
+
+        state["embedding_vector"] = pooled_vector.tolist()
         state["embedding_vector_shape"] = vector_shape
         state["embedding_status"] = "SUCCESS"
         print(f" [Embedding Node] Successfully created code dimensions vector: {vector_shape}")

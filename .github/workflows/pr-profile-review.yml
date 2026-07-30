@@ -2,7 +2,12 @@ name: Auto Profile Review on PR Open
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize]
+
+env:
+  # Minimum code-diff score (0-100) required to pass the check.
+  # Set to 0 to never fail the job (comment-only mode).
+  CODE_REVIEW_MIN_SCORE: "50"
 
 permissions:
   pull-requests: write
@@ -14,6 +19,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,6 +32,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install ruff
 
       - name: Start API server
         env:
@@ -136,3 +145,169 @@ jobs:
               issue_number: context.issue.number,
               body: "⚠️ GitHub Profile AI Reviewer could not analyze this PR author's profile (API returned a non-200 response). Check the workflow logs for details.",
             });
+
+      - name: Compute PR diff stats
+        id: diffstats
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          git diff --numstat "$BASE_SHA" "$HEAD_SHA" > diff_numstat.txt || true
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > diff_files.txt || true
+
+          echo "----- changed files -----"
+          cat diff_files.txt
+
+          # Collect changed Python files (excluding tests) for linting
+          grep -E '\.py$' diff_files.txt | grep -v -E '(^|/)tests?(/|_).*\.py$|test_.*\.py$|.*_test\.py$' > changed_py_files.txt || true
+          echo "----- changed non-test python files -----"
+          cat changed_py_files.txt || echo "(none)"
+
+      - name: Lint changed Python files
+        id: lint
+        run: |
+          if [ -s changed_py_files.txt ]; then
+            ruff check $(cat changed_py_files.txt) --output-format=concise > ruff_output.txt || true
+          else
+            > ruff_output.txt
+          fi
+          echo "----- ruff output -----"
+          cat ruff_output.txt
+
+      - name: Score the code diff and build comment
+        id: codereview
+        run: |
+          python - <<'PYEOF'
+          import subprocess
+
+          with open("diff_numstat.txt") as f:
+              numstat_lines = [l for l in f.read().splitlines() if l.strip()]
+          with open("diff_files.txt") as f:
+              changed_files = [l for l in f.read().splitlines() if l.strip()]
+          with open("ruff_output.txt") as f:
+              ruff_lines = [l for l in f.read().splitlines() if l.strip()]
+
+          total_added = 0
+          total_removed = 0
+          for line in numstat_lines:
+              parts = line.split("\t")
+              if len(parts) != 3:
+                  continue
+              added, removed, _path = parts
+              try:
+                  total_added += int(added)
+              except ValueError:
+                  pass
+              try:
+                  total_removed += int(removed)
+              except ValueError:
+                  pass
+
+          total_changed = total_added + total_removed
+          lint_issue_count = len(ruff_lines)
+
+          touched_py_src = any(
+              f.endswith(".py") and "/tests/" not in f and not f.split("/")[-1].startswith("test_")
+              for f in changed_files
+          )
+          touched_tests = any(
+              "/tests/" in f or f.split("/")[-1].startswith("test_") or f.endswith("_test.py")
+              for f in changed_files
+          )
+
+          score = 100
+          notes = []
+
+          if total_changed > 500:
+              score -= 25
+              notes.append(f"Large diff ({total_changed} lines changed) — consider splitting into smaller PRs.")
+          elif total_changed > 200:
+              score -= 15
+              notes.append(f"Sizeable diff ({total_changed} lines changed).")
+          elif total_changed > 100:
+              score -= 5
+
+          lint_penalty = min(lint_issue_count * 2, 30)
+          if lint_issue_count:
+              score -= lint_penalty
+              notes.append(f"{lint_issue_count} lint issue(s) found via ruff.")
+
+          if touched_py_src and not touched_tests:
+              score -= 10
+              notes.append("Source files changed but no test files were touched.")
+
+          score = max(0, min(100, score))
+
+          if score >= 80:
+              verdict = "✅ Looks good"
+          elif score >= 50:
+              verdict = "⚠️ Needs attention"
+          else:
+              verdict = "❌ Significant issues"
+
+          lines = [
+              "## 🔍 Code Diff Review",
+              "",
+              f"**Verdict:** {verdict} — **Score: {score}/100**",
+              "",
+              "| Metric | Value |",
+              "|---|---|",
+              f"| Files changed | {len(changed_files)} |",
+              f"| Lines added | {total_added} |",
+              f"| Lines removed | {total_removed} |",
+              f"| Lint issues (ruff) | {lint_issue_count} |",
+              f"| Tests touched | {'Yes' if touched_tests else 'No'} |",
+          ]
+
+          if notes:
+              lines.append("")
+              lines.append("**Notes**")
+              for n in notes:
+                  lines.append(f"- {n}")
+
+          if ruff_lines:
+              lines.append("")
+              lines.append("<details><summary>Lint details (ruff)</summary>")
+              lines.append("")
+              lines.append("```")
+              lines.extend(ruff_lines[:50])
+              if len(ruff_lines) > 50:
+                  lines.append(f"... and {len(ruff_lines) - 50} more")
+              lines.append("```")
+              lines.append("</details>")
+
+          lines.append("")
+          lines.append("<sub>Auto-generated code diff review — static checks only (diff size, lint, test coverage touch). Not a substitute for human review.</sub>")
+
+          with open("code_review_comment.md", "w") as f:
+              f.write("\n".join(lines))
+
+          with open("code_review_score.txt", "w") as f:
+              f.write(str(score))
+          PYEOF
+
+          echo "score=$(cat code_review_score.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Post code diff review comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('code_review_comment.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body,
+            });
+
+      - name: Gate on minimum code review score
+        run: |
+          SCORE=${{ steps.codereview.outputs.score }}
+          MIN_SCORE=${{ env.CODE_REVIEW_MIN_SCORE }}
+          echo "Code diff score: $SCORE (minimum required: $MIN_SCORE)"
+          if [ "$MIN_SCORE" -gt 0 ] && [ "$SCORE" -lt "$MIN_SCORE" ]; then
+            echo "Score is below the minimum threshold — failing this check."
+            echo "To block merges on this, enable 'Require status checks to pass' for this workflow in branch protection settings."
+            exit 1
+          fi

@@ -38,3 +38,22 @@ class AnalyzeResponse(BaseModel):
     graphql_signals: GraphQLSignals
     streak_data: StreakData
     model_info: dict[str, Any]
+
+
+class OrgAnalyzeRequest(BaseModel):
+    org: str = Field(min_length=1, max_length=39, pattern=r"^[A-Za-z0-9-]+$")
+    max_members: int | None = Field(default=None, ge=1, le=500)
+
+
+class OrgMemberError(BaseModel):
+    username: str
+    error: str
+
+
+class OrgAnalyzeResponse(BaseModel):
+    org: str
+    total_members: int
+    analyzed_count: int
+    failed_count: int
+    ranked_results: list[AnalyzeResponse]
+    failures: list[OrgMemberError]

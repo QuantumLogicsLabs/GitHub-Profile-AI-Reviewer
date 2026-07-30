@@ -209,3 +209,13 @@ A workflow at `.github/workflows/pr-profile-review.yml` runs automatically whene
 - `SCORING_BACKEND` is fixed to `heuristic` in CI, so no trained model checkpoint is needed.
 
 **Local testing:** you can reproduce what the workflow does locally by starting the server (`python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`) and calling `/analyze` with `curl` or the browser console at `http://localhost:8000/`, as described above.
+
+**Code diff review (added later):**
+
+The same workflow also reviews the actual code changes in the PR, not just the author's profile:
+
+- Computes lines added/removed and files changed.
+- Runs `ruff` (Python linter) on changed non-test `.py` files.
+- Flags PRs that change source code without touching any test files.
+- Posts a second comment ("🔍 Code Diff Review") with a score out of 100.
+- If the score falls below `CODE_REVIEW_MIN_SCORE` (default `50`, set at the top of the workflow file), the workflow job fails. To actually block merging on this, enable **Require status checks to pass before merging** for this workflow in the repository's branch protection settings.

@@ -188,3 +188,24 @@ fetch("https://your-domain.com/analyze", {
 - `model_info.data_source`: `graphql` when a server token is configured, otherwise `rest-public`.
 
 In `rest-public` mode, GitHub exposes these counts from recent public events only. With authenticated GraphQL mode, the counts come from GitHub's contribution totals.
+
+## GitHub Action: Auto Profile Review on PR Open
+
+[#github-action-auto-profile-review-on-pr-open](#github-action-auto-profile-review-on-pr-open)
+
+A workflow at `.github/workflows/pr-profile-review.yml` runs automatically whenever a pull request is opened or reopened against this repository.
+
+**What it does:**
+
+1. Spins up the FastAPI service in the CI runner (plain `uvicorn`, no Docker/Redis needed).
+2. Takes the GitHub username of the PR author.
+3. Calls `POST /analyze` with that username.
+4. Formats the response into a markdown summary (rating score, developer level, hiring readiness, language breakdown, streaks).
+5. Posts the summary as a comment on the pull request.
+
+**Requirements:**
+
+- No secrets are required to run. `GITHUB_TOKEN` is automatically provided by GitHub Actions and passed to the service for higher API rate limits (falls back to public REST mode otherwise).
+- `SCORING_BACKEND` is fixed to `heuristic` in CI, so no trained model checkpoint is needed.
+
+**Local testing:** you can reproduce what the workflow does locally by starting the server (`python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`) and calling `/analyze` with `curl` or the browser console at `http://localhost:8000/`, as described above.

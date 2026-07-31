@@ -1,20 +1,22 @@
-name: Auto Profile Review on PR Open
+name: PR Checks
+
+# Runs on every PR, including ones from forks. Fork PRs get a read-only
+# GITHUB_TOKEN for security, so this workflow only computes results and
+# saves them as an artifact. Posting the PR comment happens in a separate
+# trusted workflow (post-pr-comments.yml) that runs with write access.
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
 
-env:
-  # Minimum code-diff score (0-100) required to pass the check.
-  # Set to 0 to never fail the job (comment-only mode).
-  CODE_REVIEW_MIN_SCORE: "50"
-
 permissions:
-  pull-requests: write
   contents: read
 
+env:
+  CODE_REVIEW_MIN_SCORE: "50"
+
 jobs:
-  profile-review:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -33,6 +35,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install ruff
+
+      - name: Save PR number
+        run: |
+          mkdir -p artifact
+          echo "${{ github.event.pull_request.number }}" > artifact/pr_number.txt
 
       - name: Start API server
         env:
@@ -71,8 +78,7 @@ jobs:
           fi
           echo "status=success" >> "$GITHUB_OUTPUT"
 
-      - name: Build review comment
-        id: comment
+      - name: Build profile review comment
         if: steps.analyze.outputs.status == 'success'
         run: |
           python - <<'PYEOF'
@@ -116,38 +122,16 @@ jobs:
           ]
           body = "\n".join(lines)
 
-          with open("comment_body.md", "w") as f:
+          with open("artifact/profile_comment.md", "w") as f:
               f.write(body)
           PYEOF
 
-      - name: Post review as PR comment
-        if: steps.analyze.outputs.status == 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const body = fs.readFileSync('comment_body.md', 'utf8');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body,
-            });
-
-      - name: Post failure notice
+      - name: Build profile failure notice
         if: steps.analyze.outputs.status == 'failed'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: "⚠️ GitHub Profile AI Reviewer could not analyze this PR author's profile (API returned a non-200 response). Check the workflow logs for details.",
-            });
+        run: |
+          echo "⚠️ GitHub Profile AI Reviewer could not analyze this PR author's profile (API returned a non-200 response). Check the workflow logs for details." > artifact/profile_comment.md
 
       - name: Compute PR diff stats
-        id: diffstats
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
@@ -155,31 +139,20 @@ jobs:
           git diff --numstat "$BASE_SHA" "$HEAD_SHA" > diff_numstat.txt || true
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" > diff_files.txt || true
 
-          echo "----- changed files -----"
-          cat diff_files.txt
-
-          # Collect changed Python files (excluding tests) for linting
           grep -E '\.py$' diff_files.txt | grep -v -E '(^|/)tests?(/|_).*\.py$|test_.*\.py$|.*_test\.py$' > changed_py_files.txt || true
-          echo "----- changed non-test python files -----"
-          cat changed_py_files.txt || echo "(none)"
 
       - name: Lint changed Python files
-        id: lint
         run: |
           if [ -s changed_py_files.txt ]; then
             ruff check $(cat changed_py_files.txt) --output-format=concise > ruff_output.txt || true
           else
             > ruff_output.txt
           fi
-          echo "----- ruff output -----"
-          cat ruff_output.txt
 
       - name: Score the code diff and build comment
         id: codereview
         run: |
           python - <<'PYEOF'
-          import subprocess
-
           with open("diff_numstat.txt") as f:
               numstat_lines = [l for l in f.read().splitlines() if l.strip()]
           with open("diff_files.txt") as f:
@@ -279,31 +252,23 @@ jobs:
           lines.append("")
           lines.append("<sub>Auto-generated code diff review — static checks only (diff size, lint, test coverage touch). Not a substitute for human review.</sub>")
 
-          with open("code_review_comment.md", "w") as f:
+          with open("artifact/code_review_comment.md", "w") as f:
               f.write("\n".join(lines))
 
-          with open("code_review_score.txt", "w") as f:
+          with open("artifact/code_review_score.txt", "w") as f:
               f.write(str(score))
           PYEOF
 
-          echo "score=$(cat code_review_score.txt)" >> "$GITHUB_OUTPUT"
-
-      - name: Post code diff review comment
-        uses: actions/github-script@v7
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            const fs = require('fs');
-            const body = fs.readFileSync('code_review_comment.md', 'utf8');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body,
-            });
+          name: pr-review-results
+          path: artifact/
+          retention-days: 5
 
       - name: Gate on minimum code review score
         run: |
-          SCORE=${{ steps.codereview.outputs.score }}
+          SCORE=$(cat artifact/code_review_score.txt)
           MIN_SCORE=${{ env.CODE_REVIEW_MIN_SCORE }}
           echo "Code diff score: $SCORE (minimum required: $MIN_SCORE)"
           if [ "$MIN_SCORE" -gt 0 ] && [ "$SCORE" -lt "$MIN_SCORE" ]; then

@@ -254,3 +254,42 @@ def _weeks_from_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             days.append({"date": date.isoformat(), "contributionCount": counts.get(date.isoformat(), 0)})
         weeks.append({"contributionDays": days})
     return weeks
+
+
+async def fetch_org_members(org: str, max_members: int | None = None) -> list[str]:
+    """Fetch usernames of all members of a GitHub organization.
+
+    Uses the authenticated /orgs/{org}/members endpoint when GITHUB_TOKEN is set
+    (returns all members visible to the token). Falls back to the public
+    /orgs/{org}/public_members endpoint when no token is configured (returns
+    only members who have chosen to make their membership public).
+    """
+    endpoint = "members" if settings.github_token else "public_members"
+    usernames: list[str] = []
+    page = 1
+    per_page = 100
+
+    async with httpx.AsyncClient(timeout=settings.request_timeout_seconds) as client:
+        while True:
+            response = await client.get(
+                f"{settings.github_rest_api_url}/orgs/{org}/{endpoint}",
+                headers=_headers(use_token=True),
+                params={"per_page": per_page, "page": page},
+            )
+            if response.status_code != 200:
+                raise _github_error(response)
+
+            batch = response.json()
+            if not batch:
+                break
+
+            usernames.extend(member["login"] for member in batch)
+
+            if max_members is not None and len(usernames) >= max_members:
+                usernames = usernames[:max_members]
+                break
+            if len(batch) < per_page:
+                break
+            page += 1
+
+    return usernames

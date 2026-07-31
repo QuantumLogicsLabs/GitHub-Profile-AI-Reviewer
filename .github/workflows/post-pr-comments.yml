@@ -1,0 +1,60 @@
+name: Post PR Review Comments
+
+# Runs after "PR Checks" finishes, in the base repository's trusted context.
+# This ALWAYS has write access (unlike the pull_request-triggered workflow),
+# even when the original PR came from a fork, because workflow_run events
+# are never restricted the way fork pull_request events are.
+
+on:
+  workflow_run:
+    workflows: ["PR Checks"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Download results artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-review-results
+          path: artifact
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const prNumber = parseInt(fs.readFileSync('artifact/pr_number.txt', 'utf8').trim(), 10);
+
+            const profileComment = fs.existsSync('artifact/profile_comment.md')
+              ? fs.readFileSync('artifact/profile_comment.md', 'utf8')
+              : null;
+            const codeReviewComment = fs.existsSync('artifact/code_review_comment.md')
+              ? fs.readFileSync('artifact/code_review_comment.md', 'utf8')
+              : null;
+
+            if (profileComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: profileComment,
+              });
+            }
+
+            if (codeReviewComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: codeReviewComment,
+              });
+            }

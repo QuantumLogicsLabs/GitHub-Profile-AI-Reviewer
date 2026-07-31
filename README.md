@@ -189,23 +189,42 @@ fetch("https://your-domain.com/analyze", {
 
 In `rest-public` mode, GitHub exposes these counts from recent public events only. With authenticated GraphQL mode, the counts come from GitHub's contribution totals.
 
-## GitHub Action: Auto Profile Review on PR Open
 
-[#github-action-auto-profile-review-on-pr-open](#github-action-auto-profile-review-on-pr-open)
+## GitHub Action: Auto Profile Review + Code Diff Review on PR Open
 
-A workflow at `.github/workflows/pr-profile-review.yml` runs automatically whenever a pull request is opened or reopened against this repository.
+Two workflows work together to review every pull request, including ones from forks:
 
-**What it does:**
+**`.github/workflows/pr-checks.yml`** — runs on every PR (`opened`, `reopened`, `synchronize`), including from forks:
 
 1. Spins up the FastAPI service in the CI runner (plain `uvicorn`, no Docker/Redis needed).
-2. Takes the GitHub username of the PR author.
-3. Calls `POST /analyze` with that username.
-4. Formats the response into a markdown summary (rating score, developer level, hiring readiness, language breakdown, streaks).
-5. Posts the summary as a comment on the pull request.
+2. Calls `POST /analyze` with the PR author's GitHub username and builds a profile review summary.
+3. Reviews the actual code diff: lines changed, `ruff` lint issues on changed non-test `.py` files, and whether tests were touched.
+4. Saves both results as a build artifact (does not post comments directly — a PR from a fork gets a read-only token, so it can't).
+5. Fails the job if the code diff score is below `CODE_REVIEW_MIN_SCORE` (default `50`), which can be used as a required status check to block merges.
 
-**Requirements:**
+**`.github/workflows/post-pr-comments.yml`** — runs after `pr-checks.yml` finishes, in the repository's trusted context (always has write access, even for fork PRs):
 
-- No secrets are required to run. `GITHUB_TOKEN` is automatically provided by GitHub Actions and passed to the service for higher API rate limits (falls back to public REST mode otherwise).
-- `SCORING_BACKEND` is fixed to `heuristic` in CI, so no trained model checkpoint is needed.
+1. Downloads the artifact from the triggering run.
+2. Posts the profile review and code diff review as two PR comments.
 
-**Local testing:** you can reproduce what the workflow does locally by starting the server (`python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`) and calling `/analyze` with `curl` or the browser console at `http://localhost:8000/`, as described above.
+**Requirements:** no secrets needed — `GITHUB_TOKEN` is provided automatically by GitHub Actions. `SCORING_BACKEND` is fixed to `heuristic` in CI.
+
+**Local testing:** reproduce what the workflow does locally by starting the server (`python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`) and calling `/analyze` with `curl` or the browser console at `http://localhost:8000/`.
+
+## Batch Org-Level Hiring Pipeline
+
+`POST /analyze-org` runs the existing `/analyze` pipeline over every member of a GitHub organization and returns a combined, ranked report. No new scoring logic — it reuses `AnalyzerService.analyze()` for each member.
+
+Request:
+
+```bash
+curl -X POST http://localhost:8000/analyze-org \
+  -H "Content-Type: application/json" \
+  -d '{"org": "your-org-name", "max_members": 50}'
+```
+
+`max_members` is optional (defaults to no limit, capped at 500). Members are analyzed concurrently (5 at a time) — if one member's analysis fails, it's recorded in `failures` and the rest of the batch still completes.
+
+Response shape: `{ org, total_members, analyzed_count, failed_count, ranked_results: [...], failures: [...] }`, where `ranked_results` is sorted by `rating_score` descending.
+
+Without `GITHUB_TOKEN`, only members who've made their org membership public are visible (`/orgs/{org}/public_members`). With `GITHUB_TOKEN` set, all members are visible (`/orgs/{org}/members`).

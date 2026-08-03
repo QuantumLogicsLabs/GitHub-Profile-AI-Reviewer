@@ -57,3 +57,19 @@ class OrgAnalyzeResponse(BaseModel):
     failed_count: int
     ranked_results: list[AnalyzeResponse]
     failures: list[OrgMemberError]
+
+
+class SimilarDeveloper(BaseModel):
+    """One entry in a similarity search result."""
+
+    username: str
+    similarity: float = Field(ge=0.0, le=1.0, description="Cosine similarity score (0–1)")
+
+
+class SimilarDevelopersResponse(BaseModel):
+    """Response for GET /similar/{username}."""
+
+    username: str = Field(description="The query username")
+    similar: list[SimilarDeveloper] = Field(description="Similar developers, ordered by descending similarity")
+    total_indexed: int = Field(description="Total number of developer profiles currently in the vector store")
+

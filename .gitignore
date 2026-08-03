@@ -18,6 +18,7 @@ npm-debug.log*
 # Data & Models (too large for git)
 data/raw/
 data/processed/
+data/embeddings.json
 models_saved/
 experiments/logs/
 

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     embedding_dim: int = 768
     scoring_backend: str = "heuristic"
     scoring_checkpoint_path: str = "models/scoring_model.pt"
+    embedding_store_path: str = "data/embeddings.json"
     request_timeout_seconds: float = 30.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)

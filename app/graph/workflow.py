@@ -6,6 +6,7 @@ from typing import Any
 
 from app.ai.embeddings import CodeEmbeddingService
 from app.ai.scoring import ScoringEngine
+from app.ai.vector_store import vector_store
 from app.clients.github_graphql import GitHubGraphQLClient
 from app.core.config import settings
 from app.clients.streak import compute_streak_from_calendar
@@ -111,6 +112,11 @@ class AnalyzerWorkflow:
         consistency_score = _normalize_consistency(streak.current_streak, streak.longest_streak)
 
         embedding = self._embedder.embed_repository_signals(snippets)
+
+        # Persist the embedding so this profile is searchable via /similar/.
+        # Uses the module-level singleton — no second model load.
+        vector_store.save(username, embedding)
+
         activity_score = _normalize_activity(metrics, raw.get("source", "graphql"))
         scored = self._scorer.infer(embedding, activity_score, consistency_score)
 
